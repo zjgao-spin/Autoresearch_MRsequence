@@ -142,6 +142,9 @@ class LLMAgent:
 
         return f"""You are an MRI sequence optimization agent running on the MRzero Bloch simulator.
 
+## AGENT PROTOCOL (domain knowledge)
+{self.program_md}
+
 ## TASK
 Optimize a 2D Turbo Spin Echo (TSE) sequence to minimize the composite score:
   Score = 0.5*MAE/baseline + 0.3*SAR/baseline + 0.2*Time/baseline
@@ -162,10 +165,7 @@ Optimize a 2D Turbo Spin Echo (TSE) sequence to minimize the composite score:
 1. Analyze the history to understand what worked and what didn't.
 2. Propose NEW parameters for experiment #{exp_num}.
 3. Vary 1-3 parameters at a time.
-4. Return ONLY a valid JSON object with the parameters you want to change.
-
-Valid JSON response format:
-{{"n_echo": 8, "encoding": "centric", "rf_flip_angles": [180, 140, 100, 80, 60, 50, 40, 30]}}"""
+4. Return ONLY a valid JSON object with the parameters you want to change."""
 
     def _parse_json(self, text):
         text = text.strip()
