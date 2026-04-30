@@ -136,7 +136,7 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
 
     # Final outputs
     from .sequences import SEQ_BUILDERS
-    seq, _, _, _ = SEQ_BUILDERS[seq_type](**best_params)
+    seq, _, _, _ = SEQ_BUILDERS[seq_type](**{k: v for k, v in best_params.items() if k != 'noise_snr'})
     seq.write(os.path.join(output_dir, 'best_sequence.seq'))
     evaluate(best_params, output_dir, exp_id=0, fast_mode=False)
     _save_progress(tsv, os.path.join(output_dir, 'progress.png'), best_params)
