@@ -1,0 +1,67 @@
+[
+  {
+    "name": "DeepSeek-V4-Pro",
+    "model_id": "deepseek/deepseek-v4-pro",
+    "output_dir": "D:\\21_AIforMRI\\Autoresearch\\benchmark\\results\\DeepSeek-V4-Pro",
+    "elapsed_s": 1443.3371212482452,
+    "best_mae": 0.0285,
+    "best_score": 0.348,
+    "tokens_in": 42478,
+    "tokens_out": 40412,
+    "cost": 0.8304,
+    "calls": 19,
+    "status": "ok"
+  },
+  {
+    "name": "Kimi-K2.6",
+    "model_id": "moonshotai/kimi-k2.6",
+    "output_dir": "D:\\21_AIforMRI\\Autoresearch\\benchmark\\results\\Kimi-K2-6",
+    "elapsed_s": 2570.0702311992645,
+    "best_mae": 0.0329,
+    "best_score": 0.3663,
+    "tokens_in": 46244,
+    "tokens_out": 59049,
+    "cost": 0.9771,
+    "calls": 19,
+    "status": "ok"
+  },
+  {
+    "name": "GLM-5",
+    "model_id": "z-ai/glm-5",
+    "output_dir": "D:\\21_AIforMRI\\Autoresearch\\benchmark\\results\\GLM-5",
+    "elapsed_s": 731.9093627929688,
+    "best_mae": 0.0387,
+    "best_score": 0.2442,
+    "tokens_in": 46856,
+    "tokens_out": 12980,
+    "cost": 0.0736,
+    "calls": 19,
+    "status": "ok"
+  },
+  {
+    "name": "Qwen-3.6-Max",
+    "model_id": "qwen/qwen3.6-max-preview",
+    "output_dir": "D:\\21_AIforMRI\\Autoresearch\\benchmark\\results\\Qwen-3-6-Max",
+    "elapsed_s": 1275.8354396820068,
+    "best_mae": 0.0364,
+    "best_score": 0.3257,
+    "tokens_in": 51783,
+    "tokens_out": 40184,
+    "cost": 0.4415,
+    "calls": 19,
+    "status": "ok"
+  },
+  {
+    "name": "MiMo-v2.5-Pro",
+    "model_id": "xiaomi/mimo-v2.5-pro",
+    "output_dir": "D:\\21_AIforMRI\\Autoresearch\\benchmark\\results\\MiMo-v2-5-Pro",
+    "elapsed_s": 449.8794798851013,
+    "best_mae": 0.0376,
+    "best_score": 0.2932,
+    "tokens_in": 54920,
+    "tokens_out": 18408,
+    "cost": 0.0745,
+    "calls": 19,
+    "status": "ok"
+  }
+]

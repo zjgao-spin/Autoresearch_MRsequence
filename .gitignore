@@ -15,7 +15,6 @@ __pycache__/
 # Runtime output
 output/
 demo_output/
-benchmark/results/
 
 # Binary artifacts
 *.mat

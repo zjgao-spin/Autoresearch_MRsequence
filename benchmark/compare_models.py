@@ -5,7 +5,7 @@ Usage:
   python benchmark/compare_models.py --api-key YOUR_KEY --models deepseek,kimi
 """
 
-import os, sys, json, time, argparse, subprocess
+import os, sys, json, re, time, argparse, subprocess
 from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -130,7 +130,8 @@ def generate_report(results, instruction, num_exps):
         lines.append(f"- Best MAE: {r['best_mae']:.4f}")
         lines.append(f"- Best Score: {r['best_score']:.4f}")
         lines.append(f"- Total Time: {r['elapsed_s']:.0f}s")
-        lines.append(f"- Output: `benchmark/results/{Path(r['output_dir']).name}/`")
+        od = r.get('output_dir', '')
+        lines.append(f"- Output: `benchmark/results/{Path(od).name}/`" if od else "- Output: N/A")
         lines.append("")
 
     lines.append("## References")
@@ -175,11 +176,15 @@ def main():
             print(f"  Result: score={r['best_score']:.4f} mae={r['best_mae']:.4f}")
         except subprocess.TimeoutExpired:
             results.append({"name": model["name"], "model_id": model["id"],
-                           "best_mae": 0, "best_score": 999, "elapsed_s": 3600, "status": "timeout"})
+                           "best_mae": 0, "best_score": 999, "elapsed_s": 3600,
+                           "output_dir": "", "tokens_in": 0, "tokens_out": 0,
+                           "cost": 0, "calls": 0, "status": "timeout"})
             print(f"  TIMEOUT after 1 hour")
         except Exception as e:
             results.append({"name": model["name"], "model_id": model["id"],
-                           "best_mae": 0, "best_score": 999, "elapsed_s": 0, "status": str(e)[:100]})
+                           "best_mae": 0, "best_score": 999, "elapsed_s": 0,
+                           "output_dir": "", "tokens_in": 0, "tokens_out": 0,
+                           "cost": 0, "calls": 0, "status": str(e)[:100]})
             print(f"  ERROR: {e}")
 
     generate_report(results, instruction, num_exps)

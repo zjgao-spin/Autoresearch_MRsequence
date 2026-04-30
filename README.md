@@ -83,21 +83,20 @@ The agent reads `AGENTS.md` → understands the parameter space → calls `evalu
 
 ##  LLM Model Benchmark
 
-Five models competed on the same task **without any physics hardcoding** — this is a clean benchmark after removing all solution hints from `AGENTS.md`. Max 50 experiments per model, stopping early if no improvement for 15 consecutive rounds.
+Five models competed on the same task: **20 experiments each**, `T2w TSE, 128x128, TE=80ms, TR=3000ms`. Agent prompt includes full `AGENTS.md` domain knowledge with k-space noise disabled for clean evaluation.
 
 > **MAE** = Mean Absolute Error between NUFFT-reconstructed image and Bloch-theoretical T2-weighted target (voxel-wise, lower is better).
 > **Score** = Composite: `0.5 * MAE/baseline + 0.3 * SAR/baseline + 0.2 * Time/baseline`. Baseline = experiment #1 (default params).
-> Cost estimated at OpenRouter per-million-token pricing (input / output).
 
 | Rank | Model | Best MAE | Best Score | Time | Tokens In | Tokens Out | Cost |
 |------|-------|----------|------------|------|-----------|------------|------|
-| 1 | **MiMo-v2.5-Pro** | 0.0336 | **0.281** | 8.8 min | — | — | — |
-| 2 | Qwen-3.6-Max | 0.0473 | 0.294 | 34.8 min | — | — | — |
-| 3 | Kimi-K2.6 | **0.0214** | 0.330 | 25.0 min | — | — | — |
-| 4 | GLM-5 | 0.0428 | 0.365 | **8.1 min** | — | — | — |
-| 5 | DeepSeek-V4-Pro | 0.0344 | 0.446 | 13.7 min | — | — | — |
+| 1 | **GLM-5** | 0.0387 | **0.244** | 12.2 min | 46,856 | 12,980 | $0.07 |
+| 2 | MiMo-v2.5-Pro | 0.0376 | 0.293 | 7.5 min | 54,920 | 18,408 | $0.07 |
+| 3 | Qwen-3.6-Max | 0.0364 | 0.326 | 21.3 min | 51,783 | 40,184 | $0.44 |
+| 4 | DeepSeek-V4-Pro | **0.0285** | 0.348 | 24.1 min | 42,478 | 40,412 | $0.83 |
+| 5 | Kimi-K2.6 | 0.0329 | 0.366 | 42.8 min | 46,244 | 59,049 | $0.98 |
 
-> Token/cost data will be populated after the benchmark run completes.
+> **GLM-5** wins on composite score with fast convergence and low cost. **DeepSeek-V4-Pro** achieves the best image quality (lowest MAE). **MiMo-v2.5-Pro** is the fastest (7.5 min) with the second-best score.
 
 <p align="center">
   <img src="benchmark/convergence_comparison.png" width="800" alt="Convergence">

@@ -27,5 +27,5 @@
         }
     ],
     "instruction": "T2w TSE, 128x128, TE=80ms, TR=3000ms, FOV=200mm, ST=5mm",
-    "num_experiments": 50
+    "num_experiments": 20
 }
