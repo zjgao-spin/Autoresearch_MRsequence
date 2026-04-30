@@ -91,7 +91,7 @@ def evaluate(params, output_dir='output', exp_id=0, fast_mode=False):
     fov = params.get('fov', 0.20)
 
     # Build
-    noise_snr = params.pop('noise_snr', 200)
+    noise_snr = params.pop('noise_snr', 0)
     seq, ok, _, tr_delay = builder(**params)
     params['noise_snr'] = noise_snr  # restore
     # Simulate
