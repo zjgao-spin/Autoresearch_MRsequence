@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: arXiv Paper
+    url: https://arxiv.org/abs/2604.13282
+    about: Agent4MR: Agentic MR Sequence Development with Large Language Models
+  - name: karpathy/autoresearch
+    url: https://github.com/karpathy/autoresearch
+    about: The original autonomous LLM research agent

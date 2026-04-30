@@ -1,0 +1,21 @@
+# autoresearch-MRsequence dependencies
+# MRI Sequence Auto-Optimization via Autonomous LLM Agent
+
+# Core: MR physics simulation
+MRzero-Core>=1.0.0
+
+# Pulse sequence programming
+pypulseq==1.4.2
+
+# Deep learning / GPU simulation
+torch>=2.0.0
+
+# Numerical computing
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Visualization
+matplotlib>=3.7.0
+
+# LLM Agent (optional)
+requests>=2.28.0

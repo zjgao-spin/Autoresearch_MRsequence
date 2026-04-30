@@ -1,0 +1,29 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.log
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.out
+*.toc
+*.bbl
+*.blg
+
+# Runtime output
+output/
+demo_output/
+benchmark/results/
+
+# Binary artifacts
+*.mat
+*.seq
+*.npy
+
+# Python
+*.egg-info/
+dist/
+build/
+.env

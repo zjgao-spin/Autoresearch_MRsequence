@@ -1,0 +1,31 @@
+{
+    "models": [
+        {
+            "name": "DeepSeek-V4-Pro",
+            "id": "deepseek/deepseek-v4-pro",
+            "category": "reasoning"
+        },
+        {
+            "name": "Kimi-K2.6",
+            "id": "moonshotai/kimi-k2.6",
+            "category": "reasoning"
+        },
+        {
+            "name": "GLM-5",
+            "id": "z-ai/glm-5",
+            "category": "general"
+        },
+        {
+            "name": "Qwen-3.6-Max",
+            "id": "qwen/qwen3.6-max-preview",
+            "category": "general"
+        },
+        {
+            "name": "MiMo-v2.5-Pro",
+            "id": "xiaomi/mimo-v2.5-pro",
+            "category": "reasoning"
+        }
+    ],
+    "instruction": "T2w TSE, 128x128, TE=80ms, TR=3000ms, FOV=200mm, ST=5mm",
+    "num_experiments": 50
+}
