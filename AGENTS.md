@@ -8,13 +8,68 @@ This project transplants the **karpathy/autoresearch** autonomous LLM-agent para
 
 **Built on:** [karpathy/autoresearch](https://github.com/karpathy/autoresearch), [MRzero-Core](https://github.com/MRsources/MRzero-Core), [PyPulseq 1.4.2](https://pypulseq.readthedocs.io/), [Agent4MR (arXiv:2604.13282)](https://arxiv.org/abs/2604.13282) (Zaiss et al., 2026)
 
-## How You Work
+## What You Will Do
 
-1. User gives you ONE instruction (e.g., "Design a T2w TSE with 128x128 matrix, TE=80ms, TR=3000ms")
-2. You run experiments by calling `evaluate(params, output_dir, exp_id)`
-3. You keep improvements, discard regressions
-4. You iterate until the score stops improving or you reach N experiments
-5. You output the best `.seq` file and a summary report
+**You are the optimizer.** The user gives one instruction; you write a Python script at the project root and run it.
+
+Your script must follow this exact blueprint:
+
+```python
+import sys; sys.path.insert(0, ".")
+from autoresearch_mrsequence.evaluate import evaluate, score, acq_time
+from autoresearch_mrsequence.sequences import SEQ_BUILDERS
+
+output_dir = "output"
+N = 30   # number of experiments
+
+# --- default parameters (extract TE/TR/matrix from user instruction) ---
+best_params = {
+    "fov": 0.20, "n_x": 128, "n_y": 128, "n_echo": 8,
+    "rf_flip_angles": [180]*8, "slice_thickness": 5e-3,
+    "te": 0.08, "tr": 3.0, "fsp_r": 1.0, "fsp_s": 0.5,
+    "encoding": "linear", "n_slices": 1,
+}
+
+# Baseline (exp_id=1 — caches target and scoring baseline)
+baseline = evaluate(best_params, output_dir, exp_id=1)
+best_score = score(baseline["mae_total"], baseline["sar_estimate"],
+                   baseline["acq_time_s"],
+                   baseline["mae_total"], baseline["sar_estimate"],
+                   baseline["acq_time_s"])
+print(f"Baseline  MAE={baseline['mae_total']:.4f}  SAR={baseline['sar_estimate']:.4f}  "
+      f"Time={baseline['acq_time_s']:.0f}s  Score={best_score:.4f}")
+
+# --- optimization loop ---
+improvements = 0
+for exp in range(2, N + 1):
+    # YOU propose the next params using your MR physics knowledge.
+    # Read the Parameter Space table below, choose 1–3 parameters,
+    # and vary them intelligently — not randomly.
+    params = dict(best_params)
+    # params["encoding"] = "..."         # try different k-space order
+    # params["n_echo"] = ...             # change turbo factor
+    # params["rf_flip_angles"] = [...]   # design flip angle train
+
+    m = evaluate(params, output_dir, exp_id=exp, fast_mode=True)
+    s = score(m["mae_total"], m["sar_estimate"], m["acq_time_s"],
+              baseline["mae_total"], baseline["sar_estimate"],
+              baseline["acq_time_s"])
+    print(f"Exp {exp:3d}  MAE={m['mae_total']:.4f}  Score={s:.4f}")
+
+    if 0 < s < best_score:
+        best_score = s; best_params = dict(params)
+        evaluate(best_params, output_dir, exp_id=exp, fast_mode=False)
+        print(f"  -> KEEP (#{exp})")
+        improvements += 1
+
+# --- save results ---
+seq, ok, _, _ = SEQ_BUILDERS["tse"](**best_params)
+seq.write(f"{output_dir}/best_sequence.seq")
+print(f"\nDone.  {improvements} improvements in {N} experiments.")
+print(f"Best MAE={m_keep_mae:.4f}  Score={best_score:.4f}")
+```
+
+**Do NOT invoke `run.py`.**  Do NOT use `--mode random`.  That is a benchmarking tool — you are the autonomous optimizer.  You must propose every parameter change using your own knowledge of MRI physics, k-space encoding, and spin-echo signal behavior.
 
 ## Rules (CRITICAL)
 
@@ -114,7 +169,7 @@ if score < best_score:
 
 You should balance exploration and exploitation:
 
-1. **Early experiments (first 30%)**: Try diverse parameters — different turbo factors, different encodings, random flip schemes
+1. **Early experiments (first 30%)**: Try diverse parameters — different turbo factors, different encodings, flip schemes
 2. **Middle (30-60%)**: Perturb the current best parameters by small amounts
 3. **Late (60-100%)**: Fine-tune — tiny perturbations
 4. Vary 1-3 parameters at a time
