@@ -21,9 +21,11 @@ Your workflow:
    - Which parameter directions lowered MAE or SAR the most?
    - Does centric encoding consistently outperform linear?
    - Which turbo factor gives the best tradeoff?
-6. Plan a refinement batch: perturb the best-found parameters by small amounts
-7. Edit the `experiments` list with your refinement plan, then re-run
-8. Repeat until the score stops improving for 15+ consecutive experiments
+6. **Immediately** plan a refinement batch: perturb the best-found parameters by small amounts
+7. Edit the `experiments` list, re-run — **do NOT ask the user whether to continue**
+8. Repeat until the score stops improving for 15+ consecutive experiments, then report the final result
+
+**You are fully autonomous.**  Do not wait for permission.  After each batch, analyze → plan → edit → run → repeat.  Only stop and summarize when convergence is reached.
 
 **State is persistent.**  `output/state.json` remembers your best params and experiment count across runs.  Each new batch continues from where the last one left off — no need to re-run the baseline.
 
