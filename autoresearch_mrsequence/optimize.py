@@ -213,14 +213,25 @@ def _save_live_panel(output_dir, best_params, seq_type, tsv_path, exp_num):
     # ---- render each panel independently into BytesIO buffers ----
     panels = {}  # name -> BytesIO
 
-    # Panel 1: Simulated vs Target (side-by-side)
+    # Panel 1: Simulated vs Target (side-by-side, with scaling)
     fig1, (ax1a, ax1b) = plt.subplots(1, 2, figsize=(8, 5))
-    mask = target_np > target_np.max() * 0.01
-    vmin = min(img_np[mask].min() if mask.any() else 0,
-               target_np[mask].min() if mask.any() else 0)
-    vmax = max(img_np[mask].max() if mask.any() else 1,
-               target_np[mask].max() if mask.any() else 1)
-    ax1a.imshow(img_np, cmap='gray', origin='lower', vmin=vmin, vmax=vmax)
+
+    # Least-squares scale simulated image to match target magnitude
+    mask_tissue = target_np > target_np.max() * 0.01
+    if mask_tissue.any():
+        num = (target_np[mask_tissue] * img_np[mask_tissue]).sum()
+        den = (img_np[mask_tissue] * img_np[mask_tissue]).sum()
+        scale = num / max(den, 1e-8)
+        img_scaled = img_np * scale
+    else:
+        img_scaled = img_np
+
+    vmin = min(target_np[mask_tissue].min() if mask_tissue.any() else 0,
+               img_scaled[mask_tissue].min() if mask_tissue.any() else 0)
+    vmax = max(target_np[mask_tissue].max() if mask_tissue.any() else 1,
+               img_scaled[mask_tissue].max() if mask_tissue.any() else 1)
+
+    ax1a.imshow(img_scaled, cmap='gray', origin='lower', vmin=vmin, vmax=vmax)
     ax1a.set_title('Simulated', fontsize=11, fontweight='bold')
     ax1a.axis('off')
     ax1b.imshow(target_np, cmap='gray', origin='lower', vmin=vmin, vmax=vmax)
