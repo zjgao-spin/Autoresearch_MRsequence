@@ -147,7 +147,7 @@ You should balance exploration and exploitation:
 - **Decent optimization**: 50 experiments (~5-10 minutes)
 - **Thorough search**: 100 experiments (~15-20 minutes)
 
-Stop early if an entire batch produces zero improvements (converged).
+Stop early if an entire batch produces zero improvements (converged) or you reach 50 total experiments.
 
 ## Output Requirements
 

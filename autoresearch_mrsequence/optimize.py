@@ -673,6 +673,18 @@ if __name__ == '__main__':
     if last_exp > 0:
         evaluate(best_params, output_dir, exp_id=1, fast_mode=True)
 
+    # Hard cap at 50 experiments
+    MAX_EXP = 50
+    if last_exp >= MAX_EXP:
+        print(f'Reached max {MAX_EXP} experiments — stopping.')
+        from .sequences import SEQ_BUILDERS
+        build_params = {k: v for k, v in best_params.items() if k != 'noise_snr'}
+        seq, ok, _, _ = SEQ_BUILDERS[seq_type](**build_params)
+        seq.write(f'{output_dir}/best_sequence.seq')
+        print(f'Best Score={best_score:.4f}  Total exps: {last_exp}')
+        print(f'Saved: {output_dir}/best_sequence.seq')
+        exit(0)
+
     # ====================================================================
     # EXPERIMENTS ? EDIT THE LIST BELOW, THEN RUN AGAIN
     # ====================================================================
