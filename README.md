@@ -148,13 +148,7 @@ python run.py "Design a T2w TSE..." --mode llm --model deepseek/deepseek-v4-pro 
 
 A live optimization session using VSCode Copilot with GLM-5.1 — the agent reads `AGENTS.md`, proposes TSE parameters, iterates via `evaluate()`, and converges to the best sequence autonomously.
 
-<p align="center">
-  <a href="https://github.com/zjgao-spin/Autoresearch_MRsequence/releases/download/v1.0/Video.Project.mp4">
-    <img src="optimization_demo.gif" width="800" alt="Click to play video demo — VSCode Copilot + GLM-5.1">
-  </a>
-  <br>
-  <sub>⬆ Click the image to download/watch the full demo video (21 MB) · <a href="https://github.com/zjgao-spin/Autoresearch_MRsequence/releases/tag/v1.0">Release v1.0</a></sub>
-</p>
+Download the demo video from [Release v1.0](https://github.com/zjgao-spin/Autoresearch_MRsequence/releases/tag/v1.0) (`Video.Project.mp4`, 21 MB).
 
 ---
 
