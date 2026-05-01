@@ -144,6 +144,16 @@ python run.py "Design a T2w TSE..." --mode llm --model deepseek/deepseek-v4-pro 
 ---
 
 
+## Example: VSCode Copilot + GLM-5.1
+
+A live optimization session using VSCode Copilot with GLM-5.1 — the agent reads `AGENTS.md`, proposes TSE parameters, iterates via `evaluate()`, and converges to the best sequence autonomously.
+
+<p align="center">
+  <video src="Video Project.mp4" width="800" controls></video>
+</p>
+
+---
+
 ## Built On
 
 | Project | Role |
