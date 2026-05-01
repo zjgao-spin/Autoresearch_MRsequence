@@ -97,20 +97,6 @@ ax_bar.set_xticklabels(labels, rotation=15, ha='right', fontsize=8)
 ax_bar.legend(loc='upper left', fontsize=8, framealpha=0.9)
 ax_bar.grid(axis='y', alpha=0.2)
 
-# Token / cost annotation footnote
-cost_lines = []
-for info in summary.values():
-    if info.get("tokens_in") or info.get("tokens_out"):
-        cost_lines.append(
-            f'  Tokens: {info["tokens_in"]:,}+{info["tokens_out"]:,}  '
-            f'Cost: ${info["cost"]:.4f}' if info.get("cost") else ''
-        )
-        break  # show only once as a legend note
-if cost_lines:
-    ax_bar.text(0.99, 0.01, f"LLM usage:\nTokens: input+output per model\nCost: estimated (OpenRouter pricing)",
-                transform=ax_bar.transAxes, fontsize=6.5, ha='right', va='bottom',
-                bbox=dict(boxstyle='round,pad=0.3', facecolor='lightyellow', alpha=0.8))
-
 # ==================== RIGHT: Convergence Curves ====================
 for dir_name, label, color in MODELS:
     tsv_path = os.path.join(RESULTS_DIR, dir_name, "results.tsv")
@@ -145,11 +131,13 @@ for dir_name, label, color in MODELS:
         best = min(best, s)
         running.append(best)
 
-    ax_conv.step(exps, running, where="post", lw=2, color=color)
+    ax_conv.step(exps, running, where="post", lw=2, color=color,
+                 label=f"{label} (best={running[-1]:.3f})")
 
 ax_conv.set_xlabel('Experiment #', fontsize=10)
 ax_conv.set_ylabel('Best Score So Far', fontsize=10)
 ax_conv.set_title('Convergence', fontsize=11, fontweight='bold')
+ax_conv.legend(fontsize=6.5, loc='upper right')
 ax_conv.grid(True, alpha=0.2)
 ax_conv.set_ylim(bottom=0)
 
