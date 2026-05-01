@@ -7,11 +7,12 @@ from .parser import get_defaults_for, apply_constraints, parse_instruction
 
 
 def run_autonomous(instruction, num_experiments=100, output_dir='output',
-                   mode='random', model_id=None, api_key=None):
+                   mode='random', model_id=None, api_key=None, seq_type=None):
     """Parse instruction, run optimization, return best params and sequence."""
 
     parsed = parse_instruction(instruction)
-    seq_type = parsed['seq_type']
+    if seq_type is None:
+        seq_type = parsed['seq_type']
     defaults, param_meta = get_defaults_for(seq_type)
     constraints = parsed['constraints']
 
@@ -35,7 +36,7 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
     print('-' * 60)
 
     # Baseline
-    metrics = evaluate(params, output_dir, exp_id=1)
+    metrics = evaluate(params, output_dir, exp_id=1, seq_type=seq_type)
     acq_t = acq_time(params)
     base_mae = metrics['mae_total']
     base_sar = max(metrics.get('sar_estimate', 0.001), 0.0001)
@@ -90,7 +91,7 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
             desc = _describe(p, editable_meta, seq_type)
 
             try:
-                metrics = evaluate(p, output_dir, exp_id=exp, fast_mode=True)
+                metrics = evaluate(p, output_dir, exp_id=exp, fast_mode=True, seq_type=seq_type)
             except Exception as e:
                 metrics = {'status': 'crash', 'error': str(e), 'mae_total': 0, 'score': 999}
 
@@ -118,7 +119,8 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
                 best_params = dict(p)
                 if 'rf_flip_angles' in best_params:
                     best_params['rf_flip_angles'] = list(best_params['rf_flip_angles'])
-                evaluate(best_params, output_dir, exp_id=exp, fast_mode=False)
+                evaluate(best_params, output_dir, exp_id=exp, fast_mode=False, seq_type=seq_type)
+                _save_live_panel(output_dir, best_params, seq_type, tsv, exp)
                 print(f'  KEEP #{exp}: score={s:.4f} MAE={metrics["mae_total"]:.4f}')
                 no_improve = 0
             else:
@@ -131,6 +133,7 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
             if exp % 10 == 0 or exp == num_experiments:
                 print(f'  [{exp}/{num_experiments}] Best: {best_score:.4f}')
                 _save_progress(tsv, os.path.join(output_dir, 'progress.png'), best_params)
+                _save_live_panel(output_dir, best_params, seq_type, tsv, exp)
     except KeyboardInterrupt:
         print(f'\nInterrupted at experiment #{exp}. Generating final outputs...')
 
@@ -138,8 +141,9 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
     from .sequences import SEQ_BUILDERS
     seq, _, _, _ = SEQ_BUILDERS[seq_type](**{k: v for k, v in best_params.items() if k != 'noise_snr'})
     seq.write(os.path.join(output_dir, 'best_sequence.seq'))
-    evaluate(best_params, output_dir, exp_id=0, fast_mode=False)
+    evaluate(best_params, output_dir, exp_id=0, fast_mode=False, seq_type=seq_type)
     _save_progress(tsv, os.path.join(output_dir, 'progress.png'), best_params)
+    _save_live_panel(output_dir, best_params, seq_type, tsv, num_experiments)
 
     # Generate waveform + k-space analysis + report
     try:
@@ -160,6 +164,163 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
         print(f'LLM: {ci["calls"]} calls, {ci["tokens_in"]}+{ci["tokens_out"]} tokens, ${ci["cost"]:.4f}')
     print(f'Outputs: {output_dir}/')
     return best_params
+
+
+# ---------------------------------------------------------------------------
+# Live 4-panel figure: sim+target | waveform | kspace | convergence
+# ---------------------------------------------------------------------------
+
+def _save_live_panel(output_dir, best_params, seq_type, tsv_path, exp_num):
+    """Generate a real-time 4-panel overview of current best sequence."""
+    import matplotlib; matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gs_mod
+    import numpy as _np
+    from io import BytesIO
+    import matplotlib.image as mpimg
+    from .sequences import SEQ_BUILDERS
+    from .evaluate import load_phantom, theoretical_target
+    import MRzeroCore as mr0
+
+    # Build
+    build_params = {k: v for k, v in best_params.items() if k != 'noise_snr'}
+    try:
+        seq, _, _, _ = SEQ_BUILDERS[seq_type](**build_params)
+    except Exception as e:
+        print(f'  Live panel: seq build failed ({e})')
+        return
+
+    # Simulate
+    phantom = load_phantom(size=(best_params.get('n_x', 128), best_params.get('n_y', 128)))
+    try:
+        signal, kspace = mr0.util.simulate(seq, phantom=phantom, accuracy=0.005)
+    except Exception as e:
+        print(f'  Live panel: simulate failed ({e})')
+        return
+
+    # Reconstruct
+    n_x, n_y = best_params.get('n_x', 128), best_params.get('n_y', 128)
+    fov = best_params.get('fov', 0.20)
+    img = mr0.reco_adjoint(signal, kspace, resolution=(n_x, n_y, 1), FOV=(fov, fov, 1.0))
+    img_np = img.abs().squeeze().cpu().numpy()
+
+    # Target
+    TE = best_params.get('te', 0.08)
+    TR = best_params.get('tr', 3.0)
+    target_tensor, _ = theoretical_target(phantom, TE, TR)
+    target_np = target_tensor.cpu().numpy()
+
+    # Main figure
+    fig = plt.figure(figsize=(19, 14))
+    fig.suptitle(f'autoresearch-MRsequence — Current Best (Exp #{exp_num})',
+                 fontsize=14, fontweight='bold')
+    gs = fig.add_gridspec(2, 2, hspace=0.38, wspace=0.32)
+
+    # ---- Top-Left: Simulated vs Target ----
+    gs_tl = gs_mod.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[0, 0], wspace=0.04)
+    ax_sim = fig.add_subplot(gs_tl[0, 0])
+    ax_tgt = fig.add_subplot(gs_tl[0, 1])
+
+    mask = target_np > target_np.max() * 0.01
+    vmin = min(img_np[mask].min() if mask.any() else img_np.min(),
+               target_np[mask].min() if mask.any() else target_np.min())
+    vmax = max(img_np[mask].max() if mask.any() else img_np.max(),
+               target_np[mask].max() if mask.any() else target_np.max())
+
+    ax_sim.imshow(img_np, cmap='gray', origin='lower', vmin=vmin, vmax=vmax)
+    ax_sim.set_title('Simulated', fontsize=10, fontweight='bold')
+    ax_sim.axis('off')
+
+    ax_tgt.imshow(target_np, cmap='gray', origin='lower', vmin=vmin, vmax=vmax)
+    te_ms = TE * 1000; tr_ms = TR * 1000
+    ax_tgt.set_title(f'Target (TE={te_ms:.0f}ms TR={tr_ms:.0f}ms)',
+                     fontsize=10, fontweight='bold')
+    ax_tgt.axis('off')
+
+    # ---- Top-Right: Sequence Waveform ----
+    ax_wave = fig.add_subplot(gs[0, 1])
+    try:
+        seq.plot()
+        fig_wave = plt.gcf()
+        fig_wave.set_size_inches(12, 6)
+        buf = BytesIO()
+        fig_wave.savefig(buf, format='png', dpi=55, bbox_inches='tight', facecolor='white')
+        buf.seek(0)
+        wave_img = mpimg.imread(buf)
+        buf.close()
+        plt.close(fig_wave)
+
+        ax_wave.imshow(wave_img)
+        ax_wave.axis('off')
+        ax_wave.set_title('Sequence Waveform', fontsize=10, fontweight='bold')
+    except Exception:
+        ax_wave.text(0.5, 0.5, 'Waveform unavailable\n(non-interactive backend)',
+                     ha='center', va='center', transform=ax_wave.transAxes, fontsize=10)
+        ax_wave.set_title('Sequence Waveform', fontsize=10, fontweight='bold')
+        ax_wave.axis('off')
+
+    # ---- Bottom-Left: K-Space Trajectory ----
+    ax_ksp = fig.add_subplot(gs[1, 0])
+    kspace_np = kspace.cpu().numpy() if hasattr(kspace, 'cpu') else kspace
+    ky = kspace_np[:, 1]
+
+    n_echo = best_params.get('n_echo', 8)
+    n_pe = best_params.get('n_y', 128)
+    encoding = best_params.get('encoding', 'linear')
+    n_readout = n_x
+    n_ex = int(_np.floor(n_pe / n_echo))
+    n_total = n_ex * n_echo
+    rmid = n_readout // 2
+
+    echo_ky = _np.array([ky[e * n_readout + rmid] for e in range(n_total)])
+    grid = echo_ky[:n_total].reshape(n_ex, n_echo).T
+
+    for exc in range(min(n_ex, 10)):
+        alpha_val = 0.9 if exc < 5 else 0.3
+        ax_ksp.plot(range(n_echo), grid[:, exc], 'o-', ms=3, lw=1, alpha=alpha_val)
+    ax_ksp.axhline(0, color='red', ls='--', alpha=0.4, lw=0.8)
+    ax_ksp.set_xlabel('Echo #', fontsize=9)
+    ax_ksp.set_ylabel('ky (1/m)', fontsize=9)
+    ax_ksp.set_title(f'K-Space PE Order ({encoding}, turbo={n_echo})',
+                     fontsize=10, fontweight='bold')
+    ax_ksp.grid(True, alpha=0.2)
+
+    # ---- Bottom-Right: Convergence ----
+    ax_conv = fig.add_subplot(gs[1, 1])
+    if os.path.exists(tsv_path):
+        with open(tsv_path) as f:
+            lines = f.readlines()
+        data = []
+        for line in lines[1:]:
+            parts = line.strip().split('\t')
+            if len(parts) < 5:
+                continue
+            try:
+                s = float(parts[4])
+                if s > 0:
+                    data.append(s)
+            except (ValueError, IndexError):
+                pass
+        if data:
+            running, best = [], float('inf')
+            for s in data:
+                best = min(best, s)
+                running.append(best)
+            ax_conv.plot(range(1, len(running) + 1), running, 'b-', alpha=0.85, lw=2)
+            ax_conv.fill_between(range(1, len(running) + 1), running,
+                                 alpha=0.08, color='blue')
+            ax_conv.scatter(range(1, len(running) + 1),
+                            [d for d in data], s=6, c='#ccc', zorder=0)
+            ax_conv.set_title(f'Convergence (best={running[-1]:.4f})',
+                              fontsize=10, fontweight='bold')
+    ax_conv.set_xlabel('Experiment #', fontsize=9)
+    ax_conv.set_ylabel('Best Score So Far', fontsize=9)
+    ax_conv.grid(True, alpha=0.2)
+
+    out_path = os.path.join(output_dir, 'live_panel.png')
+    plt.savefig(out_path, dpi=120, bbox_inches='tight', facecolor='white')
+    plt.close(fig)
+    print(f'  Live panel updated: {out_path}')
 
 
 # ---------------------------------------------------------------------------
@@ -205,8 +366,17 @@ def _explore(p, key, meta):
         p[key] = random.choice(meta['choices'])
     elif t == 'list':
         lo, hi = meta['range']
-        n = len(p[key])
-        p[key] = [round(random.uniform(lo, hi)) for _ in range(n)]
+        cur = p.get(key)
+        if cur is None or not isinstance(cur, list):
+            length_key = meta.get('list_length_key', '')
+            if length_key and length_key in p:
+                n = p[length_key]
+            else:
+                n = 8
+            p[key] = [round(random.uniform(lo, hi)) for _ in range(n)]
+        else:
+            n = len(cur)
+            p[key] = [round(random.uniform(lo, hi)) for _ in range(n)]
 
 
 def _perturb(p, key, meta):
@@ -231,11 +401,21 @@ def _perturb(p, key, meta):
     elif t == 'list':
         lo, hi = meta['range']
         mag = meta.get('perturb_mag', 15)
-        p[key] = list(p[key])
-        n = len(p[key])
-        for i in random.sample(range(n), min(max(1, n // 3), n)):
-            delta = random.randint(-mag, mag)
-            p[key][i] = max(lo, min(hi, round(p[key][i] + delta)))
+        cur = p.get(key)
+        if cur is None or not isinstance(cur, list):
+            # Fallback: initialize from list_length_key or default length
+            length_key = meta.get('list_length_key', '')
+            if length_key and length_key in p:
+                n = p[length_key]
+            else:
+                n = 8
+            p[key] = [round(random.uniform(lo, hi)) for _ in range(n)]
+        else:
+            p[key] = list(cur)
+            n = len(p[key])
+            for i in random.sample(range(n), min(max(1, n // 3), n)):
+                delta = random.randint(-mag, mag)
+                p[key][i] = max(lo, min(hi, round(p[key][i] + delta)))
 
 
 def _resolve_deps(p, editable_meta):
