@@ -167,22 +167,25 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
 
 
 # ---------------------------------------------------------------------------
-# Live 4-panel figure: sim+target | waveform | kspace | convergence
+# Live 4-panel figure: sim+target | waveform | kspace | MAE descent
 # ---------------------------------------------------------------------------
 
 def _save_live_panel(output_dir, best_params, seq_type, tsv_path, exp_num):
     """Generate a real-time 4-panel overview of current best sequence."""
     import matplotlib; matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    import matplotlib.gridspec as gs_mod
     import numpy as _np
     from io import BytesIO
-    import matplotlib.image as mpimg
     from .sequences import SEQ_BUILDERS
     from .evaluate import load_phantom, theoretical_target
     import MRzeroCore as mr0
+    import os as _os
+    import warnings
 
-    # Build
+    # ---- ensure clean matplotlib state ----
+    plt.close('all')
+
+    # ---- build + simulate ----
     build_params = {k: v for k, v in best_params.items() if k != 'noise_snr'}
     try:
         seq, _, _, _ = SEQ_BUILDERS[seq_type](**build_params)
@@ -190,7 +193,6 @@ def _save_live_panel(output_dir, best_params, seq_type, tsv_path, exp_num):
         print(f'  Live panel: seq build failed ({e})')
         return
 
-    # Simulate
     phantom = load_phantom(size=(best_params.get('n_x', 128), best_params.get('n_y', 128)))
     try:
         signal, kspace = mr0.util.simulate(seq, phantom=phantom, accuracy=0.005)
@@ -198,128 +200,144 @@ def _save_live_panel(output_dir, best_params, seq_type, tsv_path, exp_num):
         print(f'  Live panel: simulate failed ({e})')
         return
 
-    # Reconstruct
     n_x, n_y = best_params.get('n_x', 128), best_params.get('n_y', 128)
     fov = best_params.get('fov', 0.20)
     img = mr0.reco_adjoint(signal, kspace, resolution=(n_x, n_y, 1), FOV=(fov, fov, 1.0))
     img_np = img.abs().squeeze().cpu().numpy()
 
-    # Target
     TE = best_params.get('te', 0.08)
     TR = best_params.get('tr', 3.0)
     target_tensor, _ = theoretical_target(phantom, TE, TR)
     target_np = target_tensor.cpu().numpy()
 
-    # Main figure
-    fig = plt.figure(figsize=(19, 14))
-    fig.suptitle(f'autoresearch-MRsequence — Current Best (Exp #{exp_num})',
-                 fontsize=14, fontweight='bold')
-    gs = fig.add_gridspec(2, 2, hspace=0.38, wspace=0.32)
+    # ---- render each panel independently into BytesIO buffers ----
+    panels = {}  # name -> BytesIO
 
-    # ---- Top-Left: Simulated vs Target ----
-    gs_tl = gs_mod.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[0, 0], wspace=0.04)
-    ax_sim = fig.add_subplot(gs_tl[0, 0])
-    ax_tgt = fig.add_subplot(gs_tl[0, 1])
-
+    # Panel 1: Simulated vs Target (side-by-side)
+    fig1, (ax1a, ax1b) = plt.subplots(1, 2, figsize=(8, 5))
     mask = target_np > target_np.max() * 0.01
-    vmin = min(img_np[mask].min() if mask.any() else img_np.min(),
-               target_np[mask].min() if mask.any() else target_np.min())
-    vmax = max(img_np[mask].max() if mask.any() else img_np.max(),
-               target_np[mask].max() if mask.any() else target_np.max())
+    vmin = min(img_np[mask].min() if mask.any() else 0,
+               target_np[mask].min() if mask.any() else 0)
+    vmax = max(img_np[mask].max() if mask.any() else 1,
+               target_np[mask].max() if mask.any() else 1)
+    ax1a.imshow(img_np, cmap='gray', origin='lower', vmin=vmin, vmax=vmax)
+    ax1a.set_title('Simulated', fontsize=11, fontweight='bold')
+    ax1a.axis('off')
+    ax1b.imshow(target_np, cmap='gray', origin='lower', vmin=vmin, vmax=vmax)
+    te_ms, tr_ms = TE * 1000, TR * 1000
+    ax1b.set_title(f'Target  TE={te_ms:.0f}ms TR={tr_ms:.0f}ms', fontsize=11, fontweight='bold')
+    ax1b.axis('off')
+    fig1.tight_layout()
+    buf1 = BytesIO()
+    fig1.savefig(buf1, format='png', dpi=120, facecolor='white', pad_inches=0.3)
+    buf1.seek(0); panels['sim'] = buf1
+    plt.close(fig1)
 
-    ax_sim.imshow(img_np, cmap='gray', origin='lower', vmin=vmin, vmax=vmax)
-    ax_sim.set_title('Simulated', fontsize=10, fontweight='bold')
-    ax_sim.axis('off')
-
-    ax_tgt.imshow(target_np, cmap='gray', origin='lower', vmin=vmin, vmax=vmax)
-    te_ms = TE * 1000; tr_ms = TR * 1000
-    ax_tgt.set_title(f'Target (TE={te_ms:.0f}ms TR={tr_ms:.0f}ms)',
-                     fontsize=10, fontweight='bold')
-    ax_tgt.axis('off')
-
-    # ---- Top-Right: Sequence Waveform ----
-    ax_wave = fig.add_subplot(gs[0, 1])
+    # Panel 2: Sequence Waveform (via PyPulseq seq.plot, captured as image)
     try:
-        seq.plot()
-        fig_wave = plt.gcf()
-        fig_wave.set_size_inches(12, 6)
-        buf = BytesIO()
-        fig_wave.savefig(buf, format='png', dpi=55, bbox_inches='tight', facecolor='white')
-        buf.seek(0)
-        wave_img = mpimg.imread(buf)
-        buf.close()
-        plt.close(fig_wave)
-
-        ax_wave.imshow(wave_img)
-        ax_wave.axis('off')
-        ax_wave.set_title('Sequence Waveform', fontsize=10, fontweight='bold')
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', message='FigureCanvasAgg')
+            warnings.filterwarnings('ignore', message='This figure includes Axes')
+            seq.plot()
+        fig_w = plt.gcf()
+        fig_w.set_size_inches(12, 5)
+        buf2 = BytesIO()
+        fig_w.savefig(buf2, format='png', dpi=90, facecolor='white', bbox_inches='tight')
+        buf2.seek(0); panels['wave'] = buf2
+        plt.close(fig_w)
     except Exception:
-        ax_wave.text(0.5, 0.5, 'Waveform unavailable\n(non-interactive backend)',
-                     ha='center', va='center', transform=ax_wave.transAxes, fontsize=10)
-        ax_wave.set_title('Sequence Waveform', fontsize=10, fontweight='bold')
-        ax_wave.axis('off')
+        # fallback: empty panel
+        fig_fb, ax_fb = plt.subplots(figsize=(8, 5))
+        ax_fb.text(0.5, 0.5, 'Waveform unavailable', ha='center', va='center',
+                   fontsize=12, transform=ax_fb.transAxes)
+        ax_fb.axis('off')
+        fig_fb.tight_layout()
+        buf2 = BytesIO()
+        fig_fb.savefig(buf2, format='png', dpi=120, facecolor='white', pad_inches=0.3)
+        buf2.seek(0); panels['wave'] = buf2
+        plt.close(fig_fb)
 
-    # ---- Bottom-Left: K-Space Trajectory ----
-    ax_ksp = fig.add_subplot(gs[1, 0])
-    kspace_np = kspace.cpu().numpy() if hasattr(kspace, 'cpu') else kspace
-    ky = kspace_np[:, 1]
-
+    # Panel 3: K-Space PE Trajectory
+    fig3, ax3 = plt.subplots(figsize=(8, 5))
+    ksp_np = kspace.cpu().numpy() if hasattr(kspace, 'cpu') else kspace
+    ky = ksp_np[:, 1]
     n_echo = best_params.get('n_echo', 8)
     n_pe = best_params.get('n_y', 128)
     encoding = best_params.get('encoding', 'linear')
-    n_readout = n_x
     n_ex = int(_np.floor(n_pe / n_echo))
     n_total = n_ex * n_echo
-    rmid = n_readout // 2
-
-    echo_ky = _np.array([ky[e * n_readout + rmid] for e in range(n_total)])
+    rmid = n_x // 2
+    echo_ky = _np.array([ky[e * n_x + rmid] for e in range(n_total)])
     grid = echo_ky[:n_total].reshape(n_ex, n_echo).T
+    for exc in range(min(n_ex, 12)):
+        a = 0.9 if exc < 6 else 0.2
+        ax3.plot(range(n_echo), grid[:, exc], 'o-', ms=4, lw=1.2, alpha=a)
+    ax3.axhline(0, color='red', ls='--', alpha=0.5, lw=1.0)
+    ax3.set_xlabel('Echo #', fontsize=10); ax3.set_ylabel('ky (1/m)', fontsize=10)
+    ax3.set_title(f'K-Space PE Order  ({encoding}, turbo={n_echo})', fontsize=11, fontweight='bold')
+    ax3.grid(True, alpha=0.15)
+    fig3.tight_layout()
+    buf3 = BytesIO()
+    fig3.savefig(buf3, format='png', dpi=120, facecolor='white', pad_inches=0.3)
+    buf3.seek(0); panels['ksp'] = buf3
+    plt.close(fig3)
 
-    for exc in range(min(n_ex, 10)):
-        alpha_val = 0.9 if exc < 5 else 0.3
-        ax_ksp.plot(range(n_echo), grid[:, exc], 'o-', ms=3, lw=1, alpha=alpha_val)
-    ax_ksp.axhline(0, color='red', ls='--', alpha=0.4, lw=0.8)
-    ax_ksp.set_xlabel('Echo #', fontsize=9)
-    ax_ksp.set_ylabel('ky (1/m)', fontsize=9)
-    ax_ksp.set_title(f'K-Space PE Order ({encoding}, turbo={n_echo})',
-                     fontsize=10, fontweight='bold')
-    ax_ksp.grid(True, alpha=0.2)
-
-    # ---- Bottom-Right: Convergence ----
-    ax_conv = fig.add_subplot(gs[1, 1])
-    if os.path.exists(tsv_path):
+    # Panel 4: MAE Descent
+    fig4, ax4 = plt.subplots(figsize=(8, 5))
+    mae_data = []
+    if _os.path.exists(tsv_path):
         with open(tsv_path) as f:
-            lines = f.readlines()
-        data = []
-        for line in lines[1:]:
-            parts = line.strip().split('\t')
-            if len(parts) < 5:
-                continue
-            try:
-                s = float(parts[4])
-                if s > 0:
-                    data.append(s)
-            except (ValueError, IndexError):
-                pass
-        if data:
-            running, best = [], float('inf')
-            for s in data:
-                best = min(best, s)
-                running.append(best)
-            ax_conv.plot(range(1, len(running) + 1), running, 'b-', alpha=0.85, lw=2)
-            ax_conv.fill_between(range(1, len(running) + 1), running,
-                                 alpha=0.08, color='blue')
-            ax_conv.scatter(range(1, len(running) + 1),
-                            [d for d in data], s=6, c='#ccc', zorder=0)
-            ax_conv.set_title(f'Convergence (best={running[-1]:.4f})',
-                              fontsize=10, fontweight='bold')
-    ax_conv.set_xlabel('Experiment #', fontsize=9)
-    ax_conv.set_ylabel('Best Score So Far', fontsize=9)
-    ax_conv.grid(True, alpha=0.2)
+            for li, line in enumerate(f):
+                if li == 0: continue
+                parts = line.strip().split('\t')
+                if len(parts) < 3: continue
+                try:
+                    m = float(parts[1])
+                    if m > 0: mae_data.append(m)
+                except (ValueError, IndexError): pass
+    if mae_data:
+        ax4.scatter(range(1, len(mae_data) + 1), mae_data,
+                    s=10, c='#cccccc', zorder=1, label='Experiments')
+        running, best_m = [], float('inf')
+        for m in mae_data:
+            best_m = min(best_m, m)
+            running.append(best_m)
+        ax4.step(range(1, len(running) + 1), running, 'b-', lw=2.5,
+                 where='post', zorder=3, label=f'Best={running[-1]:.4f}')
+        ax4.fill_between(range(1, len(running) + 1), running, alpha=0.06, color='blue')
+        ax4.legend(fontsize=8, loc='upper right')
+    ax4.set_xlabel('Experiment #', fontsize=10); ax4.set_ylabel('MAE Total', fontsize=10)
+    ax4.set_title('MAE Descent', fontsize=11, fontweight='bold')
+    ax4.grid(True, alpha=0.15)
+    fig4.tight_layout()
+    buf4 = BytesIO()
+    fig4.savefig(buf4, format='png', dpi=120, facecolor='white', pad_inches=0.3)
+    buf4.seek(0); panels['mae'] = buf4
+    plt.close(fig4)
 
-    out_path = os.path.join(output_dir, 'live_panel.png')
-    plt.savefig(out_path, dpi=120, bbox_inches='tight', facecolor='white')
-    plt.close(fig)
+    # ---- compose 2x2 grid ----
+    fig_all = plt.figure(figsize=(21, 15))
+    fig_all.patch.set_facecolor('white')
+    fig_all.suptitle(f'autoresearch-MRsequence — Current Best  (Exp #{exp_num})',
+                     fontsize=15, fontweight='bold', y=0.99)
+
+    names = ['sim', 'wave', 'ksp', 'mae']
+    titles = ['Simulated vs Target', 'Sequence Waveform',
+              'K-Space PE Trajectory', 'MAE Descent']
+    for idx, (name, title) in enumerate(zip(names, titles)):
+        ax = fig_all.add_subplot(2, 2, idx + 1)
+        ax.axis('off')
+        ax.set_title(title, fontsize=12, fontweight='bold', pad=10)
+        if name in panels:
+            panels[name].seek(0)
+            panel_img = plt.imread(panels[name])
+            ax.imshow(panel_img)
+        panels[name].close()  # free memory
+
+    out_path = _os.path.join(output_dir, 'live_panel.png')
+    fig_all.savefig(out_path, dpi=120, bbox_inches='tight', facecolor='white')
+    plt.close(fig_all)
+    plt.close('all')
     print(f'  Live panel updated: {out_path}')
 
 
