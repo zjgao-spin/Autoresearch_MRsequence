@@ -51,23 +51,45 @@ for dir_name, label, _ in MODELS:
 x = np.arange(len(labels))
 width = 0.22
 
+# MAE & Score on primary y-axis (left)
 bars_mae = ax_bar.bar(x - width, mae_vals, width, color='#4C72B0', edgecolor='white', linewidth=0.5, label='Best MAE')
 bars_score = ax_bar.bar(x, score_vals, width, color='#55A868', edgecolor='white', linewidth=0.5, label='Best Score')
-bars_time = ax_bar.bar(x + width, time_vals, width, color='#DD8452', edgecolor='white', linewidth=0.5, label='Time (min)')
 
-# Dual Y-axis for time
+# Time on twin y-axis (right), scaled to be visually ~same height as MAE/Score
+max_mae = max(mae_vals) if mae_vals else 1
+max_score = max(score_vals) if score_vals else 1
+ref_max = max(max_mae, max_score)
+max_time = max(time_vals) if time_vals else 1
+scale = ref_max / max_time if max_time > 0 else 1
+time_scaled = [t * scale for t in time_vals]
+
 ax_time = ax_bar.twinx()
-ax_time.set_ylim(0, max(time_vals + [1]) * 1.25)
+bars_time = ax_time.bar(x + width, time_scaled, width, color='#DD8452', edgecolor='white', linewidth=0.5, label='Time (min)')
+
+# Align both y-axes to cover same visual range
+ax_bar.set_ylim(0, ref_max * 1.35)
+ax_time.set_ylim(0, max_time * 1.35)
 ax_time.set_ylabel('Time (minutes)', fontsize=10, color='#DD8452')
 ax_time.tick_params(axis='y', labelcolor='#DD8452')
 
 # Value labels
-for bars, fmt in [(bars_mae, '.3f'), (bars_score, '.3f'), (bars_time, '.1f')]:
-    for bar in bars:
-        h = bar.get_height()
-        if h > 0:
-            ax_bar.text(bar.get_x() + bar.get_width()/2., h + 0.005,
-                        f'{h:{fmt}}', ha='center', va='bottom', fontsize=7)
+for bar in bars_mae:
+    h = bar.get_height()
+    if h > 0:
+        ax_bar.text(bar.get_x() + bar.get_width()/2., h + ref_max * 0.02,
+                    f'{h:.3f}', ha='center', va='bottom', fontsize=7)
+
+for bar in bars_score:
+    h = bar.get_height()
+    if h > 0:
+        ax_bar.text(bar.get_x() + bar.get_width()/2., h + ref_max * 0.02,
+                    f'{h:.3f}', ha='center', va='bottom', fontsize=7)
+
+for bar, t_val in zip(bars_time, time_vals):
+    h = bar.get_height()
+    if t_val > 0:
+        ax_time.text(bar.get_x() + bar.get_width()/2., h + max_time * 0.02,
+                    f'{t_val:.1f}', ha='center', va='bottom', fontsize=7, color='#DD8452')
 
 ax_bar.set_xlabel('Model', fontsize=10)
 ax_bar.set_ylabel('MAE / Score (lower is better)', fontsize=10)
