@@ -350,6 +350,13 @@ def _save_live_panel(output_dir, best_params, seq_type, tsv_path, exp_num):
     fig_all.savefig(out_path, dpi=120, bbox_inches='tight', facecolor='white')
     plt.close(fig_all)
     plt.close('all')
+
+    # Save numbered frame for animations
+    import shutil
+    frame_dir = _os.path.join(output_dir, 'frames')
+    _os.makedirs(frame_dir, exist_ok=True)
+    shutil.copy(out_path, _os.path.join(frame_dir, f'live_{exp_num:04d}.png'))
+
     print(f'  Live panel updated: {out_path}')
 
 

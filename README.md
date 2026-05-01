@@ -50,6 +50,11 @@ Design a T2w TSE with 128x128 matrix, TE=80ms, TR=3000ms
 
 The agent reads `AGENTS.md`, understands the allowed parameter space, calls `evaluate()`, iterates over candidate designs, and outputs `best_sequence.seq` with reports.
 
+<p align="center">
+  <b>Clone → one command → autonomous optimization → scanner-ready sequence</b><br>
+  <img src="optimization_demo.gif" width="650" alt="Live optimization demo">
+</p>
+
 > The repository-level agent protocol is `AGENTS.md`, so major AI coding tools can detect the task instructions without manual setup.
 
 ---

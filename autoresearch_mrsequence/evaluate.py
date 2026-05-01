@@ -74,10 +74,10 @@ def score(mae, sar, acq_t, baseline_mae=1, baseline_sar=0.01, baseline_time=1):
             0.2 * acq_t / max(baseline_time, 0.001))
 
 
-def evaluate(params, output_dir='output', exp_id=0, fast_mode=False):
+def evaluate(params, output_dir='output', exp_id=0, fast_mode=False, seq_type='tse'):
     """Simulate sequence, reconstruct, compute metrics."""
     from .sequences import SEQ_BUILDERS
-    builder = SEQ_BUILDERS.get('tse')
+    builder = SEQ_BUILDERS.get(seq_type, SEQ_BUILDERS.get('tse'))
     if builder is None:
         return {'status': 'crash', 'error': 'Unknown sequence type',
                 'mae_total': 0, 'score': 999}
