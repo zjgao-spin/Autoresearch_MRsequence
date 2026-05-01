@@ -156,6 +156,20 @@ After all experiments, you MUST produce:
 2. A text summary: best MAE, best score, best parameters, number of improvements
 3. Optional: run `generate_all()` for visualizations (waveform, k-space, analysis report)
 
+## Config
+
+These values control optimization behavior. Change them here — the Python code reads them at runtime. **No need to edit `.py` files.**
+
+```
+MAX_EXPERIMENTS = 20
+NO_IMPROVE_LIMIT = 5
+```
+
+| Key | Value | Meaning |
+|-----|-------|---------|
+| `MAX_EXPERIMENTS` | 20 | Hard cap — optimization stops here |
+| `NO_IMPROVE_LIMIT` | 5 | Consecutive non-improving exps before convergence |
+
 ## References
 
 - **karpathy/autoresearch** — Autonomous LLM-agent research paradigm. https://github.com/karpathy/autoresearch

@@ -1,9 +1,29 @@
 """Autonomous optimization loop -- AGENTS.md-driven generic explorer."""
 
-import os, time, random, copy
+import os, time, random, copy, re
 import numpy as np
 from .evaluate import evaluate, score, acq_time
 from .parser import get_defaults_for, apply_constraints, parse_instruction
+
+
+def _read_agents_config():
+    """Read MAX_EXPERIMENTS / NO_IMPROVE_LIMIT from AGENTS.md."""
+    cfg = {'max_experiments': 20, 'no_improve_limit': 5}
+    try:
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        md = os.path.join(root, 'AGENTS.md')
+        if os.path.exists(md):
+            with open(md) as f:
+                txt = f.read()
+            m = re.search(r'MAX_EXPERIMENTS\s*=\s*(\d+)', txt)
+            if m: cfg['max_experiments'] = int(m.group(1))
+            m = re.search(r'NO_IMPROVE_LIMIT\s*=\s*(\d+)', txt)
+            if m: cfg['no_improve_limit'] = int(m.group(1))
+    except Exception:
+        pass  # use defaults
+    return cfg
+
+_agents_cfg = _read_agents_config()
 
 
 def run_autonomous(instruction, num_experiments=100, output_dir='output',
@@ -132,8 +152,8 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
             else:
                 no_improve += 1
 
-            if no_improve >= 5:
-                print(f'  Converged: no improvement for 5 experiments, stopping at #{exp}')
+            if no_improve >= _agents_cfg['no_improve_limit']:
+                print(f'  Converged: no improvement for {_agents_cfg["no_improve_limit"]} experiments, stopping at #{exp}')
                 break
 
             if exp % 10 == 0 or exp == num_experiments:
@@ -673,10 +693,9 @@ if __name__ == '__main__':
     if last_exp > 0:
         evaluate(best_params, output_dir, exp_id=1, fast_mode=True)
 
-    # Hard cap at 20 experiments
-    MAX_EXP = 20
-    if last_exp >= MAX_EXP:
-        print(f'Reached max {MAX_EXP} experiments — stopping.')
+    # Hard cap (read from AGENTS.md Config section)
+    if last_exp >= _agents_cfg['max_experiments']:
+        print(f'Reached max {_agents_cfg["max_experiments"]} experiments — stopping.')
         from .sequences import SEQ_BUILDERS
         build_params = {k: v for k, v in best_params.items() if k != 'noise_snr'}
         seq, ok, _, _ = SEQ_BUILDERS[seq_type](**build_params)
