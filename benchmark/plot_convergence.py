@@ -145,13 +145,11 @@ for dir_name, label, color in MODELS:
         best = min(best, s)
         running.append(best)
 
-    ax_conv.step(exps, running, where="post", lw=2, color=color,
-                 label=f"{label} (best={running[-1]:.3f})")
+    ax_conv.step(exps, running, where="post", lw=2, color=color)
 
 ax_conv.set_xlabel('Experiment #', fontsize=10)
 ax_conv.set_ylabel('Best Score So Far', fontsize=10)
 ax_conv.set_title('Convergence', fontsize=11, fontweight='bold')
-ax_conv.legend(fontsize=6.5, loc='upper right')
 ax_conv.grid(True, alpha=0.2)
 ax_conv.set_ylim(bottom=0)
 
