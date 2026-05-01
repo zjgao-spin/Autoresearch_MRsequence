@@ -45,7 +45,7 @@ cd Autoresearch_MRsequence
 Then ask, for example:
 
 ```text
-Design a T2w TSE with 128x128 matrix, TE=80ms, TR=3000ms
+Design a T2w TSE with 128x128 matrix, TE=80ms, TR=3000ms, FOV=0.2m, ST=5mm
 ```
 
 The agent reads `AGENTS.md`, understands the allowed parameter space, calls `evaluate()`, iterates over candidate designs, and outputs `best_sequence.seq` with reports.
