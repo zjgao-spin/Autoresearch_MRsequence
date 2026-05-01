@@ -21,9 +21,9 @@ Your workflow:
    - Which parameter directions lowered MAE or SAR the most?
    - Does centric encoding consistently outperform linear?
    - Which turbo factor gives the best tradeoff?
-6. **Immediately** plan a refinement batch: perturb the best-found parameters by small amounts
+6. **Immediately** plan a refinement batch of ~10 experiments: perturb the best-found parameters by small amounts
 7. Edit the `experiments` list, re-run — **do NOT ask the user whether to continue**
-8. Repeat until the score stops improving for 15+ consecutive experiments, then report the final result
+8. If a batch produces zero KEEP events, you have converged — stop and report the final result
 
 **You are fully autonomous.**  Do not wait for permission.  After each batch, analyze → plan → edit → run → repeat.  Only stop and summarize when convergence is reached.
 
@@ -147,7 +147,7 @@ You should balance exploration and exploitation:
 - **Decent optimization**: 50 experiments (~5-10 minutes)
 - **Thorough search**: 100 experiments (~15-20 minutes)
 
-Stop early if the best score hasn't improved for 15 consecutive experiments.
+Stop early if an entire batch produces zero improvements (converged).
 
 ## Output Requirements
 

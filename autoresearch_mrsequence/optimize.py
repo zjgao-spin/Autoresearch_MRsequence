@@ -132,8 +132,8 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
             else:
                 no_improve += 1
 
-            if no_improve >= 15:
-                print(f'  Converged: no improvement for 15 experiments, stopping at #{exp}')
+            if no_improve >= 10:
+                print(f'  Converged: no improvement for 10 experiments, stopping at #{exp}')
                 break
 
             if exp % 10 == 0 or exp == num_experiments:
