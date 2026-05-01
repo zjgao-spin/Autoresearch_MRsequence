@@ -16,6 +16,22 @@ This project transplants the **karpathy/autoresearch** autonomous LLM-agent para
 4. You iterate until the score stops improving or you reach N experiments
 5. You output the best `.seq` file and a summary report
 
+## Rules (CRITICAL)
+
+**DO NOT modify or create files in these directories:**
+- `autoresearch_mrsequence/` — fixed oracle and sequence builder
+- `benchmark/` — experiment infrastructure
+- `AGENTS.md` — this protocol itself
+
+**You MAY write Python code to:**
+- Call `evaluate(params, ...)` and iterate over experiments
+- Vary the params dict, track scores, save the best `.seq`
+- Use the provided imports: `evaluate`, `score`, `acq_time`, `SEQ_BUILDERS`,
+  `generate_all`, `load_phantom`
+
+> Write scripts at the project root or in `output/`, but **never edit the core
+> library**. The sequence builder and evaluator are fixed.
+
 ## Calling `evaluate()`
 
 Import and call the fixed oracle:
