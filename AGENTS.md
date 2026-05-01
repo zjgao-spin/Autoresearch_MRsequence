@@ -21,7 +21,7 @@ Your workflow:
    - Which parameter directions lowered MAE or SAR the most?
    - Does centric encoding consistently outperform linear?
    - Which turbo factor gives the best tradeoff?
-6. **Immediately** plan a refinement batch of ~10 experiments: perturb the best-found parameters by small amounts
+6. **Immediately** plan a refinement batch of ~5 experiments: perturb the best-found parameters by small amounts
 7. Edit the `experiments` list, re-run — **do NOT ask the user whether to continue**
 8. If a batch produces zero KEEP events, you have converged — stop and report the final result
 
@@ -143,11 +143,10 @@ You should balance exploration and exploitation:
 
 ## Suggested Experiment Count
 
-- **Quick try**: 10-20 experiments (~1-3 minutes on RTX 4090)
-- **Decent optimization**: 50 experiments (~5-10 minutes)
-- **Thorough search**: 100 experiments (~15-20 minutes)
+- **Quick try**: 5-10 experiments (~1-2 minutes on RTX 4090)
+- **Standard optimization**: 20 experiments (~3-5 minutes)
 
-Stop early if an entire batch produces zero improvements (converged) or you reach 50 total experiments.
+Stop early if an entire batch produces zero improvements (converged) or you reach 20 total experiments.
 
 ## Output Requirements
 

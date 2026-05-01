@@ -132,8 +132,8 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
             else:
                 no_improve += 1
 
-            if no_improve >= 10:
-                print(f'  Converged: no improvement for 10 experiments, stopping at #{exp}')
+            if no_improve >= 5:
+                print(f'  Converged: no improvement for 5 experiments, stopping at #{exp}')
                 break
 
             if exp % 10 == 0 or exp == num_experiments:
@@ -673,8 +673,8 @@ if __name__ == '__main__':
     if last_exp > 0:
         evaluate(best_params, output_dir, exp_id=1, fast_mode=True)
 
-    # Hard cap at 50 experiments
-    MAX_EXP = 50
+    # Hard cap at 20 experiments
+    MAX_EXP = 20
     if last_exp >= MAX_EXP:
         print(f'Reached max {MAX_EXP} experiments — stopping.')
         from .sequences import SEQ_BUILDERS
