@@ -114,13 +114,15 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
             if metrics['status'] == 'crash':
                 continue
 
+            # Live panel — every experiment with current params
+            _save_live_panel(output_dir, p, seq_type, tsv, exp)
+
             if 0 < s < best_score:
                 best_score = s; best_mae = metrics['mae_total']
                 best_params = dict(p)
                 if 'rf_flip_angles' in best_params:
                     best_params['rf_flip_angles'] = list(best_params['rf_flip_angles'])
                 evaluate(best_params, output_dir, exp_id=exp, fast_mode=False, seq_type=seq_type)
-                _save_live_panel(output_dir, best_params, seq_type, tsv, exp)
                 print(f'  KEEP #{exp}: score={s:.4f} MAE={metrics["mae_total"]:.4f}')
                 no_improve = 0
             else:
@@ -133,7 +135,6 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
             if exp % 10 == 0 or exp == num_experiments:
                 print(f'  [{exp}/{num_experiments}] Best: {best_score:.4f}')
                 _save_progress(tsv, os.path.join(output_dir, 'progress.png'), best_params)
-                _save_live_panel(output_dir, best_params, seq_type, tsv, exp)
     except KeyboardInterrupt:
         print(f'\nInterrupted at experiment #{exp}. Generating final outputs...')
 
