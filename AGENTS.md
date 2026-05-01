@@ -10,66 +10,16 @@ This project transplants the **karpathy/autoresearch** autonomous LLM-agent para
 
 ## What You Will Do
 
-**You are the optimizer.** The user gives one instruction; you write a Python script at the project root and run it.
+**You edit ONE file: `optimize.py` at the project root.**  This is equivalent to karpathy's `train.py` — it is the only file you modify.  You never create new `.py` files.
 
-Your script must follow this exact blueprint:
+Your workflow:
+1. Read `optimize.py` — it contains a loop that calls the fixed `evaluate()` oracle
+2. Edit the `EXPERIMENTS` section: fill in parameter choices for each experiment
+3. Run `python optimize.py`
+4. Read the output (MAE, scores, KEEP events)
+5. If satisfied, stop. If not, edit `optimize.py` again and re-run.
 
-```python
-import sys; sys.path.insert(0, ".")
-from autoresearch_mrsequence.evaluate import evaluate, score, acq_time
-from autoresearch_mrsequence.sequences import SEQ_BUILDERS
-
-output_dir = "output"
-N = 30   # number of experiments
-
-# --- default parameters (extract TE/TR/matrix from user instruction) ---
-best_params = {
-    "fov": 0.20, "n_x": 128, "n_y": 128, "n_echo": 8,
-    "rf_flip_angles": [180]*8, "slice_thickness": 5e-3,
-    "te": 0.08, "tr": 3.0, "fsp_r": 1.0, "fsp_s": 0.5,
-    "encoding": "linear", "n_slices": 1,
-}
-
-# Baseline (exp_id=1 — caches target and scoring baseline)
-baseline = evaluate(best_params, output_dir, exp_id=1)
-best_score = score(baseline["mae_total"], baseline["sar_estimate"],
-                   baseline["acq_time_s"],
-                   baseline["mae_total"], baseline["sar_estimate"],
-                   baseline["acq_time_s"])
-print(f"Baseline  MAE={baseline['mae_total']:.4f}  SAR={baseline['sar_estimate']:.4f}  "
-      f"Time={baseline['acq_time_s']:.0f}s  Score={best_score:.4f}")
-
-# --- optimization loop ---
-improvements = 0
-for exp in range(2, N + 1):
-    # YOU propose the next params using your MR physics knowledge.
-    # Read the Parameter Space table below, choose 1–3 parameters,
-    # and vary them intelligently — not randomly.
-    params = dict(best_params)
-    # params["encoding"] = "..."         # try different k-space order
-    # params["n_echo"] = ...             # change turbo factor
-    # params["rf_flip_angles"] = [...]   # design flip angle train
-
-    m = evaluate(params, output_dir, exp_id=exp, fast_mode=True)
-    s = score(m["mae_total"], m["sar_estimate"], m["acq_time_s"],
-              baseline["mae_total"], baseline["sar_estimate"],
-              baseline["acq_time_s"])
-    print(f"Exp {exp:3d}  MAE={m['mae_total']:.4f}  Score={s:.4f}")
-
-    if 0 < s < best_score:
-        best_score = s; best_params = dict(params)
-        evaluate(best_params, output_dir, exp_id=exp, fast_mode=False)
-        print(f"  -> KEEP (#{exp})")
-        improvements += 1
-
-# --- save results ---
-seq, ok, _, _ = SEQ_BUILDERS["tse"](**best_params)
-seq.write(f"{output_dir}/best_sequence.seq")
-print(f"\nDone.  {improvements} improvements in {N} experiments.")
-print(f"Best MAE={m_keep_mae:.4f}  Score={best_score:.4f}")
-```
-
-**Do NOT invoke `run.py`.**  Do NOT use `--mode random`.  That is a benchmarking tool — you are the autonomous optimizer.  You must propose every parameter change using your own knowledge of MRI physics, k-space encoding, and spin-echo signal behavior.
+**Do NOT invoke `run.py`.  Do NOT use `--mode random`.**  Those are benchmarking tools.  You are the autonomous optimizer — you must propose every parameter change using your own knowledge of MRI physics, k-space encoding, and spin-echo signal behavior.  Vary parameters intelligently, not randomly.
 
 ## Rules (CRITICAL)
 
@@ -79,13 +29,14 @@ print(f"Best MAE={m_keep_mae:.4f}  Score={best_score:.4f}")
 - `AGENTS.md` — this protocol itself
 
 **You MAY write Python code to:**
-- Call `evaluate(params, ...)` and iterate over experiments
+- Edit the `EXPERIMENTS` section of `optimize.py` (add parameter choices for each experiment)
+- Call `evaluate(params, ...)` within that file
 - Vary the params dict, track scores, save the best `.seq`
 - Use the provided imports: `evaluate`, `score`, `acq_time`, `SEQ_BUILDERS`,
   `generate_all`, `load_phantom`
 
-> Write scripts at the project root or in `output/`, but **never edit the core
-> library**. The sequence builder and evaluator are fixed.
+> Edit `optimize.py` (or write scripts at `output/`), but **never edit the core
+> library** or create new `.py` files. The sequence builder and evaluator are fixed.
 
 ## Calling `evaluate()`
 
