@@ -579,3 +579,130 @@ def _save_progress(tsv_path, out_path, best_params):
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(out_path, dpi=120, bbox_inches='tight')
     plt.close(fig)
+# Agent workspace ? python -m autoresearch_mrsequence.optimize
+
+def _write_tsv_agent(path, exp_id, mae_total):
+    import os as _os
+    existed = _os.path.exists(path)
+    with open(path, 'a') as f:
+        if not existed:
+            f.write('exp\tmae_total\tscore\n')
+        f.write(f'{exp_id}\t{mae_total:.6f}\t0\n')
+
+
+if __name__ == '__main__':
+    import os as _os, json
+
+    output_dir = 'output'; seq_type = 'tse'
+    _os.makedirs(output_dir, exist_ok=True)
+    tsv = _os.path.join(output_dir, 'results.tsv')
+    state_path = _os.path.join(output_dir, 'state.json')
+
+    if _os.path.exists(state_path):
+        with open(state_path) as f:
+            state = json.load(f)
+        best_params = state['best_params']
+        best_score = state['best_score']
+        baseline_mae = state['baseline_mae']
+        baseline_sar = state['baseline_sar']
+        baseline_time = state['baseline_time']
+        last_exp = state['exp']
+    else:
+        best_params = {
+            'fov': 0.20, 'n_x': 128, 'n_y': 128, 'n_echo': 8,
+            'rf_flip_angles': [180]*8, 'slice_thickness': 5e-3,
+            'te': 0.08, 'tr': 3.0, 'fsp_r': 1.0, 'fsp_s': 0.5, 'encoding': 'linear',
+        }
+        best_score = float('inf')
+        baseline_mae = baseline_sar = baseline_time = 1.0
+        last_exp = 0
+
+    if last_exp == 0:
+        print('=' * 50)
+        print('Running baseline (exp_id=1) ...')
+        p = dict(best_params)
+        m = evaluate(p, output_dir, exp_id=1)
+        baseline_mae = m['mae_total']
+        baseline_sar = max(m.get('sar_estimate', 0.01), 0.0001)
+        baseline_time = max(m.get('acq_time_s', 0), 1.0)
+        best_score = score(baseline_mae, baseline_sar, baseline_time,
+                           baseline_mae, baseline_sar, baseline_time)
+        print(f'Baseline  MAE={baseline_mae:.4f}  Score={best_score:.4f}')
+        _write_tsv_agent(tsv, 1, baseline_mae)
+        last_exp = 1
+        _save_live_panel(output_dir, p, seq_type, tsv, 1)
+        with open(state_path, 'w') as f:
+            json.dump({'best_params': best_params, 'best_score': best_score,
+                       'baseline_mae': baseline_mae, 'baseline_sar': baseline_sar,
+                       'baseline_time': baseline_time, 'exp': 1}, f, default=str)
+
+    if last_exp > 0:
+        evaluate(best_params, output_dir, exp_id=1, fast_mode=True)
+
+    # ====================================================================
+    # EXPERIMENTS ? EDIT THE LIST BELOW, THEN RUN AGAIN
+    # ====================================================================
+    # Each dict overrides entries in best_params.
+    # You may vary: encoding, n_echo, rf_flip_angles, fsp_r, fsp_s
+    # Dependency: rf_flip_angles length MUST equal n_echo.
+
+    experiments = [
+        # ===== ADD YOUR EXPERIMENTS HERE =====
+        {'encoding': 'centric'},
+        {'encoding': 'centric', 'n_echo': 16, 'rf_flip_angles': [160,150,140,130,120,110,100,90,80,70,60,50,40,30,20,10]},
+        {'n_echo': 4, 'rf_flip_angles': [150,140,130,120]},
+    ]
+    # ====================================================================
+    # END EXPERIMENTS
+    # ====================================================================
+
+    if not experiments:
+        print('experiments list is empty ? add parameter overrides and re-run.')
+        enc = best_params.get("encoding"); tur = best_params.get("n_echo")
+        print(f'Current best: Score={best_score:.4f}  encoding={enc}, turbo={tur}')
+    else:
+        improvements = 0
+        start_exp = last_exp
+        for i, override in enumerate(experiments):
+            exp_id = start_exp + 1 + i
+            params = dict(best_params)
+            params.update(override)
+            if isinstance(params.get('rf_flip_angles'), list):
+                n_e = params.get('n_echo', 8)
+                flips = params['rf_flip_angles']
+                if len(flips) != n_e:
+                    if len(flips) < n_e:
+                        flips = flips + [flips[-1]] * (n_e - len(flips))
+                    else:
+                        flips = flips[:n_e]
+                    params['rf_flip_angles'] = flips
+            m = evaluate(params, output_dir, exp_id=exp_id, fast_mode=True)
+            s = score(m.get('mae_total', baseline_mae), m.get('sar_estimate', baseline_sar),
+                      m.get('acq_time_s', baseline_time), baseline_mae, baseline_sar, baseline_time)
+            mae_val = m.get('mae_total', 0)
+            print(f'Exp {exp_id:3d}  MAE={mae_val:.4f}  Score={s:.4f}')
+            _write_tsv_agent(tsv, exp_id, mae_val)
+            _save_live_panel(output_dir, params, seq_type, tsv, exp_id)
+            if 0 < s < best_score:
+                best_score = s
+                best_params = dict(params)
+                if isinstance(best_params.get('rf_flip_angles'), list):
+                    best_params['rf_flip_angles'] = list(best_params['rf_flip_angles'])
+                evaluate(best_params, output_dir, exp_id=exp_id, fast_mode=False)
+                print(f'  >>> KEEP #{exp_id}')
+                improvements += 1
+            last_exp = exp_id
+        with open(state_path, 'w') as f:
+            json.dump({'best_params': best_params, 'best_score': best_score,
+                       'baseline_mae': baseline_mae, 'baseline_sar': baseline_sar,
+                       'baseline_time': baseline_time, 'exp': last_exp}, f, default=str)
+        print(f'\nBatch done.  {improvements} improvement(s) in this run ({len(experiments)} exps).')
+
+    from .sequences import SEQ_BUILDERS
+    build_params = {k: v for k, v in best_params.items() if k != 'noise_snr'}
+    seq, ok, _, _ = SEQ_BUILDERS[seq_type](**build_params)
+    seq.write(f'{output_dir}/best_sequence.seq')
+    print(f'Best Score={best_score:.4f}  Total exps: {last_exp}')
+    print(f'Saved: {output_dir}/best_sequence.seq')
+    print(f'Live panel: {output_dir}/live_panel.png')
+    print('=' * 50)

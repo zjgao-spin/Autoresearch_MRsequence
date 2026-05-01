@@ -10,12 +10,12 @@ This project transplants the **karpathy/autoresearch** autonomous LLM-agent para
 
 ## What You Will Do
 
-**You edit ONE file: `optimize.py` at the project root.**  This is equivalent to karpathy's `train.py` — it is the only file you modify.  You never create new `.py` files.
+**You edit ONE file: `autoresearch_mrsequence/optimize.py`.**  This is equivalent to karpathy's `train.py` — it is the only file you modify.  You never create new `.py` files.
 
 Your workflow:
-1. Read `optimize.py` — it contains a loop that calls the fixed `evaluate()` oracle
+1. Read `autoresearch_mrsequence/optimize.py` — it contains a loop that calls the fixed `evaluate()` oracle
 2. Edit the `EXPERIMENTS` section: fill in parameter choices for each experiment
-3. Run `python optimize.py`
+3. Run `python -m autoresearch_mrsequence.optimize`
 4. Read the output (MAE, scores, KEEP events)
 5. If satisfied, stop. If not, edit `optimize.py` again and re-run.
 
@@ -24,18 +24,22 @@ Your workflow:
 ## Rules (CRITICAL)
 
 **DO NOT modify or create files in these directories:**
-- `autoresearch_mrsequence/` — fixed oracle and sequence builder
+- `autoresearch_mrsequence/evaluate.py` — fixed oracle
+- `autoresearch_mrsequence/sequences/` — sequence builders
+- `autoresearch_mrsequence/report.py` — report generation
+- `autoresearch_mrsequence/parser.py` — instruction parser
+- `autoresearch_mrsequence/llm_agent.py` — LLM agent
 - `benchmark/` — experiment infrastructure
 - `AGENTS.md` — this protocol itself
 
 **You MAY write Python code to:**
-- Edit the `EXPERIMENTS` section of `optimize.py` (add parameter choices for each experiment)
+- Edit the `EXPERIMENTS` section of `autoresearch_mrsequence/optimize.py` (add parameter choices for each experiment)
 - Call `evaluate(params, ...)` within that file
 - Vary the params dict, track scores, save the best `.seq`
 - Use the provided imports: `evaluate`, `score`, `acq_time`, `SEQ_BUILDERS`,
   `generate_all`, `load_phantom`
 
-> Edit `optimize.py` (or write scripts at `output/`), but **never edit the core
+> Edit `autoresearch_mrsequence/optimize.py` (or write scripts at `output/`), but **never edit the core
 > library** or create new `.py` files. The sequence builder and evaluator are fixed.
 
 ## Calling `evaluate()`
