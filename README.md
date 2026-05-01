@@ -143,11 +143,6 @@ python run.py "Design a T2w TSE..." --mode llm --model deepseek/deepseek-v4-pro 
 
 ---
 
-## Citation
-
-If you use this work, please cite:
-
-
 
 ## Built On
 
