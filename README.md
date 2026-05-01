@@ -142,29 +142,7 @@ python run.py "Design a T2w TSE..." --mode llm --model deepseek/deepseek-v4-pro 
 
 If you use this work, please cite:
 
-```bibtex
-@misc{autoresearch_mrsequence,
-  author = {Zijing Gao},
-  title = {Autoresearch-MRsequence: LLM-driven Autonomous MRI Sequence Design},
-  year = {2026},
-  publisher = {GitHub},
-  url = {https://github.com/zjgao-spin/Autoresearch_MRsequence}
-}
 
-@article{agent4mr2026,
-  author = {Zaiss, Moritz and Aly, Amr and Endres, Jonathan and Dornstetter, Tobias and Weinm\"{u}ller, Simon and Maier, Andreas},
-  title = {Agent4MR: Agentic MR Sequence Development with Large Language Models},
-  journal = {arXiv preprint arXiv:2604.13282},
-  year = {2026}
-}
-
-@misc{karpathy2025autoresearch,
-  author = {Andrej Karpathy},
-  title = {autoresearch: Autonomous LLM Research Agent},
-  year = {2025},
-  url = {https://github.com/karpathy/autoresearch}
-}
-```
 
 ## Built On
 
