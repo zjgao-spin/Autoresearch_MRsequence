@@ -17,7 +17,15 @@ Your workflow:
 2. Edit the `EXPERIMENTS` section: fill in parameter choices for each experiment
 3. Run `python -m autoresearch_mrsequence.optimize`
 4. Read the output (MAE, scores, KEEP events)
-5. If satisfied, stop. If not, edit `optimize.py` again and re-run.
+5. Analyze results: check `output/results.tsv` and `output/live_panel.png`
+   - Which parameter directions lowered MAE or SAR the most?
+   - Does centric encoding consistently outperform linear?
+   - Which turbo factor gives the best tradeoff?
+6. Plan a refinement batch: perturb the best-found parameters by small amounts
+7. Edit the `experiments` list with your refinement plan, then re-run
+8. Repeat until the score stops improving for 15+ consecutive experiments
+
+**State is persistent.**  `output/state.json` remembers your best params and experiment count across runs.  Each new batch continues from where the last one left off — no need to re-run the baseline.
 
 **Do NOT invoke `run.py`.  Do NOT use `--mode random`.**  Those are benchmarking tools.  You are the autonomous optimizer — you must propose every parameter change using your own knowledge of MRI physics, k-space encoding, and spin-echo signal behavior.  Vary parameters intelligently, not randomly.
 

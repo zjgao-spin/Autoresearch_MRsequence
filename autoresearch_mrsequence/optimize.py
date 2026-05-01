@@ -115,7 +115,11 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
                 continue
 
             # Live panel — every experiment with current params
-            _save_live_panel(output_dir, p, seq_type, tsv, exp)
+            info = {'exp': exp, 'mae': metrics.get('mae_total', 0),
+                    'score': s, 'sar': metrics.get('sar_estimate', 0),
+                    'time': metrics.get('acq_time_s', 0),
+                    'encoding': p.get('encoding', '?'), 'turbo': p.get('n_echo', '?')}
+            _save_live_panel(output_dir, p, seq_type, tsv, exp, info)
 
             if 0 < s < best_score:
                 best_score = s; best_mae = metrics['mae_total']
@@ -144,7 +148,11 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
     seq.write(os.path.join(output_dir, 'best_sequence.seq'))
     evaluate(best_params, output_dir, exp_id=0, fast_mode=False, seq_type=seq_type)
     _save_progress(tsv, os.path.join(output_dir, 'progress.png'), best_params)
-    _save_live_panel(output_dir, best_params, seq_type, tsv, num_experiments)
+    info_final = {'exp': num_experiments, 'mae': best_mae, 'score': best_score,
+                  'sar': 0, 'time': 0,
+                  'encoding': best_params.get('encoding', '?'),
+                  'turbo': best_params.get('n_echo', '?')}
+    _save_live_panel(output_dir, best_params, seq_type, tsv, num_experiments, info_final)
 
     # Generate waveform + k-space analysis + report
     try:
@@ -171,7 +179,7 @@ def run_autonomous(instruction, num_experiments=100, output_dir='output',
 # Live 4-panel figure: sim+target | waveform | kspace | MAE descent
 # ---------------------------------------------------------------------------
 
-def _save_live_panel(output_dir, best_params, seq_type, tsv_path, exp_num):
+def _save_live_panel(output_dir, best_params, seq_type, tsv_path, exp_num, current_info=None):
     """Generate a real-time 4-panel overview of current best sequence."""
     import matplotlib; matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -321,6 +329,22 @@ def _save_live_panel(output_dir, best_params, seq_type, tsv_path, exp_num):
     ax4.set_xlabel('Experiment #', fontsize=10); ax4.set_ylabel('MAE Total', fontsize=10)
     ax4.set_title('MAE Descent', fontsize=11, fontweight='bold')
     ax4.grid(True, alpha=0.15)
+
+    # Metrics overlay
+    if current_info:
+        info_text = (
+            f"Exp #{current_info.get('exp', exp_num)}  "
+            f"Score: {current_info.get('score', 0):.4f}\n"
+            f"MAE: {current_info.get('mae', 0):.4f}  "
+            f"SAR: {current_info.get('sar', 0):.4f}  "
+            f"Time: {current_info.get('time', 0):.0f}s\n"
+            f"encoding={current_info.get('encoding', '?')}  "
+            f"turbo={current_info.get('turbo', '?')}"
+        )
+        ax4.text(0.02, 0.97, info_text, transform=ax4.transAxes, fontsize=6.5,
+                 fontfamily='monospace', verticalalignment='top',
+                 bbox=dict(boxstyle='round,pad=0.3', facecolor='lightyellow', alpha=0.85))
+
     fig4.tight_layout()
     buf4 = BytesIO()
     fig4.savefig(buf4, format='png', dpi=120, facecolor='white', pad_inches=0.3)
@@ -637,7 +661,10 @@ if __name__ == '__main__':
         print(f'Baseline  MAE={baseline_mae:.4f}  Score={best_score:.4f}')
         _write_tsv_agent(tsv, 1, baseline_mae)
         last_exp = 1
-        _save_live_panel(output_dir, p, seq_type, tsv, 1)
+        info_bl = {'exp': 1, 'mae': baseline_mae, 'score': best_score,
+                   'sar': baseline_sar, 'time': baseline_time,
+                   'encoding': p.get('encoding', '?'), 'turbo': p.get('n_echo', '?')}
+        _save_live_panel(output_dir, p, seq_type, tsv, 1, info_bl)
         with open(state_path, 'w') as f:
             json.dump({'best_params': best_params, 'best_score': best_score,
                        'baseline_mae': baseline_mae, 'baseline_sar': baseline_sar,
@@ -689,7 +716,10 @@ if __name__ == '__main__':
             mae_val = m.get('mae_total', 0)
             print(f'Exp {exp_id:3d}  MAE={mae_val:.4f}  Score={s:.4f}')
             _write_tsv_agent(tsv, exp_id, mae_val)
-            _save_live_panel(output_dir, params, seq_type, tsv, exp_id)
+            info = {'exp': exp_id, 'mae': mae_val, 'score': s,
+                    'sar': m.get('sar_estimate', 0), 'time': m.get('acq_time_s', 0),
+                    'encoding': params.get('encoding', '?'), 'turbo': params.get('n_echo', '?')}
+            _save_live_panel(output_dir, params, seq_type, tsv, exp_id, info)
             if 0 < s < best_score:
                 best_score = s
                 best_params = dict(params)
